@@ -1,12 +1,47 @@
 import argparse
 import os
-from typing import Optional
+import csv
+import sys
+from typing import Optional, List
 import psycopg2 
+from psycopg2 import sql
+from psycopg2.extensions import ISOLATION_LEVEL_READ_COMMITTED, ISOLATION_LEVEL_AUTOCOMMIT
 from dotenv import load_dotenv
+
+class ExtractCSV:
+    """
+    A class for opening and parsing the csv file
+    """
+    def __init__(self, csv_path: str):
+        self.csv_path = csv_path
+        self.columns: List[str] = []
+        self.types: List[str] = []
+        self.data = []
+
+        try:
+            with open(self.csv_path, newline='') as self.csv_file:
+                reader = csv.reader(self.csv_file, delimiter=',')
+                r_num = 0
+
+                for row in reader:
+                    if r_num == 0:
+                        self.columns = row
+                        r_num += 1
+                        continue
+                    elif r_num == 1:
+                        for v in row:
+                            self.types.append(type(v))
+                            r_num += 1
+                    self.data.append(row)
+
+        except FileNotFoundError:
+            print(f'Opps the csv file path {self.csv_path} does not exist!')
+            sys.exit()
+
 
 class DBConnection:
     """
-    A class used to represent a database connection.
+    A data class used to represent a database connection.
     """
     def __init__(self, db_name:str, user:str, host: str, password: str, port:str):
         self.db_name: str = db_name
@@ -23,9 +58,25 @@ class PopulateDB:
         self.db_name: str = db_name
         # open db connection
         self.conn = psycopg2.connect(
-            f"dbname='{db_conn.db_name}' user='{db_conn.user}' host='{db_conn.host}' password='{db_conn.password}' port='{db_conn.port}'"
+            f"dbname='postgres' user='{db_conn.user}' host='{db_conn.host}' password='{db_conn.password}' port='{db_conn.port}'"
         )
-        self.conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_READ_COMMITTED)
+        self.conn.set_isolation_level(ISOLATION_LEVEL_READ_COMMITTED)
+
+    def create_new_db(self):
+        try:
+            self.conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+
+            with self.conn.cursor() as curr:
+                curr.execute(sql.SQL('CREATE DATABASE {}').format(sql.Identifier(self.db_name)))
+        except psycopg2.Error as e:
+            print(f"An error occured trying to create a new db: {e}")
+        finally:
+            print(f"successfully created database: {self.db_name}")
+            self.conn.set_isolation_level(ISOLATION_LEVEL_READ_COMMITTED)
+
+    def create_table(self, columns: List[str]):
+        pass
+        
 
     def test_db_conn(self):
         # Fetch all the records
@@ -60,6 +111,10 @@ if __name__ == "__main__":
     load_dotenv()
     db_conn = DBConnection(os.getenv("DB_NAME"), os.getenv("USER"), os.getenv("HOST"), os.getenv("PASSWORD"), os.getenv("PORT"))
 
-    db = PopulateDB(args.csv_path, db_conn, args.db_name)
-    # db.inspect()
-    db.test_db_conn()
+    # db = PopulateDB(args.csv_path, db_conn, args.db_name)
+    # db.create_new_db()
+    # db.test_db_conn()
+
+    csv_data = ExtractCSV(args.csv_path)
+    for i, col in enumerate(csv_data.columns):
+        print(f"{col}: {csv_data.types[i]}")
