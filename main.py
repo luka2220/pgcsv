@@ -17,6 +17,9 @@ class ExtractCSV:
         columns (Index[str]): an index object with all column names as strings
         data_types (Series): a pandas series of all data types for each column
         data (list[Series]): a list of pandas series representing each record in the csv file 
+
+    Methods
+        show_df(): void: displays the data frame; mostly used for exploring data in the dataframe
     """
     def __init__(self, csv_path: str):
         self.csv_path = csv_path
@@ -33,6 +36,18 @@ class ExtractCSV:
         except FileNotFoundError:
             print(f'Opps the csv file path {self.csv_path} does not exist!')
             sys.exit()
+
+    def show_df(self):
+        largest_body = int(self.__df['body'].str.len().idxmax())
+        print(f"Largest body of text: {self.__df.iloc[largest_body]}\n")
+
+        highest_score = self.__df["score"].max()
+        print(f"Highest joke score: {highest_score}\n")
+
+        largest_id_length = self.__df["id"].max()
+        print(f"Largest id string length {largest_id_length}; excpected = 6\n")
+
+        # print(self.__df)
 
 
 class DBConnection:
@@ -119,7 +134,6 @@ if __name__ == "__main__":
     # load env variables to create new DBConnection 
     load_dotenv()
     db_conn = DBConnection(os.getenv("DB_NAME"), os.getenv("USER"), os.getenv("HOST"), os.getenv("PASSWORD"), os.getenv("PORT"))
-    print(db_conn.__doc__)
 
     # *Accessing the db connection operations
     # db = PopulateDB(db_conn, args.db_name)
@@ -127,7 +141,8 @@ if __name__ == "__main__":
     # db.test_db_conn()
 
     csv_data = ExtractCSV(args.csv_path)
-    print(csv_data.__doc__)
+    csv_data.show_df()
+
     # *NOTE: Access the type of the id field
     # *print(csv_data.data_types["id"])
 
