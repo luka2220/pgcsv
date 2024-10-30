@@ -38,6 +38,13 @@ class ExtractCSV:
 class DBConnection:
     """
     A data class used to represent a database connection.
+
+    Attributes
+        db_name (str): db name to connect to 
+        user (str): username of the db
+        host (str): host name of the db server running
+        password (str): users password for the db
+        port (str): port where the db server is running
     """
     def __init__(self, db_name:str, user:str, host: str, password: str, port:str):
         self.db_name: str = db_name
@@ -112,6 +119,7 @@ if __name__ == "__main__":
     # load env variables to create new DBConnection 
     load_dotenv()
     db_conn = DBConnection(os.getenv("DB_NAME"), os.getenv("USER"), os.getenv("HOST"), os.getenv("PASSWORD"), os.getenv("PORT"))
+    print(db_conn.__doc__)
 
     # *Accessing the db connection operations
     # db = PopulateDB(db_conn, args.db_name)
@@ -119,7 +127,7 @@ if __name__ == "__main__":
     # db.test_db_conn()
 
     csv_data = ExtractCSV(args.csv_path)
-    
+    print(csv_data.__doc__)
     # *NOTE: Access the type of the id field
     # *print(csv_data.data_types["id"])
 
