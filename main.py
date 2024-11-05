@@ -3,12 +3,6 @@ import os
 import sys
 from typing import Tuple
 import pandas as pd
-import psycopg2
-from psycopg2 import sql
-from psycopg2.extensions import (
-    ISOLATION_LEVEL_READ_COMMITTED,
-    ISOLATION_LEVEL_AUTOCOMMIT,
-)
 from dotenv import load_dotenv
 
 
@@ -45,6 +39,9 @@ class ExtractCSV:
     def column_data(self) -> Tuple[Tuple[str, str]]:
         pass
 
+    def df(self) -> pd.DataFrame:
+        return self.__df
+
     def show_df(self):
         largest_body = int(self.__df["body"].str.len().max())
         print(f"Largest body of text:\n {largest_body}\n")
@@ -56,15 +53,6 @@ class ExtractCSV:
         print(f"Largest id string length {largest_id_length}; excpected = 6\n")
 
         # print(self.__df)
-
-
-class Table:
-    """
-    A class for representing the relevent data for creating a new table
-    """
-
-    def __init__(self, columns: Tuple[Tuple[str, str]]):
-        pass
 
 
 class DBConnection:
@@ -94,61 +82,16 @@ class PopulateDB:
     Attributes
         db_conn (DBConnection): database connection data based on the DBConnection class
         db_name (str): name of the database to create
+        table(str): name of the table to create
 
     Methods
-        test_db_conn(): void: fetches all the records and prints the to stdout
-        create_new_db(): void: creates a new database name based on db_name; exists program with message if there's an error
-        create_table():
-
+        test_db_conn():
     """
 
-    def __init__(self, db_conn: DBConnection, db_name: str):
+    def __init__(self, db_conn: DBConnection, db_name: str, table: str):
         self.db_conn = db_conn
         self.db_name: str = db_name
-        # open initial db connection
-        self.__conn = psycopg2.connect(
-            f"dbname='postgres' user='{db_conn.user}' host='{db_conn.host}' password='{db_conn.password}' port='{db_conn.port}'"
-        )
-        self.__conn.set_isolation_level(ISOLATION_LEVEL_READ_COMMITTED)
-
-    def create_new_db(self):
-        try:
-            self.__conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-
-            with self.__conn.cursor() as curr:
-                curr.execute(
-                    sql.SQL("CREATE DATABASE {}").format(sql.Identifier(self.db_name))
-                )
-        except psycopg2.errors.DuplicateDatabase:
-            # Catch error if db already exists; do nothing
-            pass
-        except psycopg2.Error as e:
-            print(f"An error occured trying to create a new db: {e}")
-            sys.exit()
-        finally:
-            self.__conn.set_isolation_level(ISOLATION_LEVEL_READ_COMMITTED)
-
-        # * update the database connection string with the proper database
-        self.__update_connection(
-            f"dbname='{self.db_name}' user='{self.db_conn.user}' host='{self.db_conn.host}' password='{self.db_conn.password}' port='{self.db_conn.port}'"
-        )
-
-    def create_table(self):
-        pass
-
-    def __update_connection(self, connection_str: str):
-        self.__conn = psycopg2.connect(connection_str)
-
-    def close(self):
-        if self.__conn:
-            self.__conn.close()
-
-    def test_db_conn(self):
-        # Fetch all the records
-        curr = self.__conn.cursor()
-        curr.execute('INSERT INTO public."Test" VALUES(%s, %s);', ("Jokes", 20))
-
-        curr.close()
+        self.table = table
 
 
 if __name__ == "__main__":
@@ -165,6 +108,9 @@ if __name__ == "__main__":
         help="name of database to populate, creates the database if it does not exist",
         required=True,
     )
+    parser.add_argument(
+        "-t", "--table", help="name of the table to create and populate", required=True
+    )
 
     args = parser.parse_args()
 
@@ -178,13 +124,8 @@ if __name__ == "__main__":
         os.getenv("PORT"),
     )
 
-    # *Accessing the db connection operations
-    # db = PopulateDB(db_conn, args.db_name)
-    # db.create_new_db()
-    # db.test_db_conn()
-    # db.close()
-
-    # csv_data = ExtractCSV(args.csv_path)
+    csv_data = ExtractCSV(args.csv_path)
+    df = csv_data.df()
     # csv_data.show_df()
 
     # *NOTE: Access the type of the id field
@@ -192,3 +133,10 @@ if __name__ == "__main__":
 
     # *NOTE: Access the data within row 0, col "id"
     # *print(csv_data.data[0]["id"])
+
+    # *Accessing the db connection operations
+    db = PopulateDB(db_conn, args.db_name, args.table)
+    db.test_df_to_sql(df)
+    # db.create_new_db()
+    # db.test_db_conn()
+    db.close()
